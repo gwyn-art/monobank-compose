@@ -96,7 +96,7 @@ export default async function Home() {
 
     return (
       <main>
-        Can't fetch bank history.
+        Can&apos;t fetch bank history.
       </main>
     )
   }
