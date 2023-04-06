@@ -115,7 +115,7 @@ const Transaction: React.FC<{ transaction: Transaction }> = ({ transaction: tr }
 
   return (
     <div style={{ alignSelf: 'flex-start' }} key={tr.id}>
-      <h3>{tr.description}</h3>
+      <h3>Provider: {tr.description}</h3>
       <p>Amount: {moneyFormat(tr.amount)}</p>
       <p>Balance: {moneyFormat(tr.balance)}</p>
     </div>
