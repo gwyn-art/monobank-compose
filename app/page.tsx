@@ -83,9 +83,10 @@ export default async function Home() {
     )
   }
 
-  let transactions = await fetchHistory(P1_MB_TOKEN, RNWhiteCard)
-  transactions = filterTransactionBetween(transactions.concat(await fetchHistory(P2_MB_TOKEN, KKWhiteCard)))
-  console.log('Transactions:', transactions)
+  let transactions = await fetchHistory(P1_MB_TOKEN, RNWhiteCard) || []
+  transactions = filterTransactionBetween(transactions.concat(await fetchHistory(P2_MB_TOKEN, KKWhiteCard) || []))
+    .sort((a,b) => b.time - a.time)
+
   const debit = transactions.filter(tr => tr.amount > 0)
   const credit = transactions.filter(tr => tr.amount < 0)
 
@@ -122,4 +123,9 @@ const Transaction: React.FC<{ transaction: Transaction }> = ({ transaction: tr }
   )
 }
 
-const moneyFormat = (n: number) => `${(n / 100).toFixed(0)},${Math.abs(n % 100)} UAH`
+const moneyFormat = (n: number) => moneyFormatter.format(n / 100)
+
+const moneyFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'UAH',
+});
