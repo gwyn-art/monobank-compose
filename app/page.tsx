@@ -1,91 +1,125 @@
-import Image from 'next/image'
-import { Inter } from 'next/font/google'
 import styles from './page.module.css'
 
-const inter = Inter({ subsets: ['latin'] })
+const P1_MB_TOKEN = process.env.P1_MB_TOKEN || ''
+const P2_MB_TOKEN = process.env.P2_MB_TOKEN || ''
 
-export default function Home() {
+type Transaction = {
+  id: string;
+  time: number;
+  description: string;
+  mcc: number;
+  originalMcc: number;
+  hold: boolean;
+  amount: number;
+  operationAmount: number;
+  currencyCode: number;
+  commissionRate: number;
+  cashbackAmount: number;
+  balance: number;
+  comment: string;
+  receiptId: string;
+  invoiceId: string;
+  counterEdrpou: string;
+  counterIban: string;
+  counterName: string;
+};
+
+type Account = {
+  id: string;
+  sendId: string;
+  balance: number;
+  creditLimit: number;
+  type: "black" | "white";
+  currencyCode: number;
+  cashbackType: "UAH" | "USD" | "EUR" | "RUB";
+  maskedPan: string[];
+  iban: string;
+};
+
+type Jar = Record<string, never>;
+
+type Client = {
+  clientId: string;
+  name: string;
+  webHookUrl: string;
+  permissions: string;
+  accounts: Account[];
+  jars: Jar[];
+};
+
+const fetchClient = async (token: string): Promise<Client> => {
+  const authHeader = { 'X-Token': token }
+
+  const mbClient: Client = await fetch('https://api.monobank.ua/personal/client-info', { next: { revalidate: 60 }, headers: authHeader })
+    .then(response => response.json())
+
+  return mbClient
+}
+
+const getWhiteCard = (client: Client) => {
+  return client.accounts.find(acc => acc.type === 'white')
+}
+
+const fetchHistory = async (token: string, account: Account): Promise<Transaction[]> => {
+  const authHeader = { 'X-Token': token }
+
+  return fetch(`https://api.monobank.ua/personal/statement/${account.id}/${Date.now() - 2629800000}/${Date.now()}`, { next: { revalidate: 60 }, headers: authHeader }).then(resp => resp.json())
+}
+
+const filterTransactionBetween = (transactions: Transaction[]) =>
+  transactions.filter(tr1 => !transactions.some(tr2 => tr1.amount === tr2.amount * -1 && tr1.time === tr2.time))
+
+export default async function Home() {
+  const RNClient = await fetchClient(P1_MB_TOKEN)
+  const KKClient = await fetchClient(P2_MB_TOKEN)
+  const RNWhiteCard = getWhiteCard(RNClient)
+  const KKWhiteCard = getWhiteCard(KKClient)
+
+  if (!RNWhiteCard || !KKWhiteCard) {
+    return (
+      <div>
+        White card not found.
+      </div>
+    )
+  }
+
+  let transactions = await fetchHistory(P1_MB_TOKEN, RNWhiteCard)
+  transactions = filterTransactionBetween(transactions.concat(await fetchHistory(P2_MB_TOKEN, KKWhiteCard)))
+  console.log('Transactions:', transactions)
+  const debit = transactions.filter(tr => tr.amount > 0)
+  const credit = transactions.filter(tr => tr.amount < 0)
+
   return (
     <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>app/page.tsx</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
-
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-        <div className={styles.thirteen}>
-          <Image src="/thirteen.svg" alt="13" width={40} height={31} priority />
-        </div>
-      </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://beta.nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={inter.className}>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p className={inter.className}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={inter.className}>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p className={inter.className}>Explore the Next.js 13 playground.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={inter.className}>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p className={inter.className}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
+      <h2>Current balance: {moneyFormat(RNWhiteCard.balance + KKWhiteCard.balance)}</h2>
+      <h2>Cashback</h2>
+      <p>Total cashback: {moneyFormat(transactions.reduce((acc, tr) => acc + tr.cashbackAmount,0))}</p>
+      <h2>Debit</h2>
+      {
+        debit.map(tr => (
+          <Transaction key={tr.id} transaction={tr} />
+        ))
+      }
+      <h2>Credit</h2>
+      {
+        credit.map(tr => (
+          <Transaction key={tr.id} transaction={tr} />
+        ))
+      }
     </main>
   )
 }
+
+const Transaction: React.FC<{ transaction: Transaction }> = ({ transaction: tr }) => {
+
+
+  return (
+    <div style={{ alignSelf: 'flex-start' }} key={tr.id}>
+      <h3>{tr.description}</h3>
+      <p>Amoutn: {moneyFormat(tr.amount)}</p>
+      <p>Balance: {moneyFormat(tr.balance)}</p>
+    </div>
+  )
+}
+
+const moneyFormat = (n: number) => `${(n / 100).toFixed(0)},${Math.abs(n % 100)} UAH`
