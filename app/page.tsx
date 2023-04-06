@@ -70,38 +70,52 @@ const filterTransactionBetween = (transactions: Transaction[]) =>
   transactions.filter(tr1 => !transactions.some(tr2 => tr1.amount === tr2.amount * -1 && tr1.time === tr2.time))
 
 export default async function Home() {
-  const RNClient = await fetchClient(P1_MB_TOKEN)
-  const KKClient = await fetchClient(P2_MB_TOKEN)
-  const RNWhiteCard = getWhiteCard(RNClient)
-  const KKWhiteCard = getWhiteCard(KKClient)
+  let transactions: Transaction[] = [];
+  let P1WhiteCard: Account;
+  let P2WhiteCard: Account;
 
-  if (!RNWhiteCard || !KKWhiteCard) {
+  try {
+    const RNClient = await fetchClient(P1_MB_TOKEN)
+    const KKClient = await fetchClient(P2_MB_TOKEN)
+    P1WhiteCard = getWhiteCard(RNClient)!
+    P2WhiteCard = getWhiteCard(KKClient)!
+
+    if (!P1WhiteCard || !P2WhiteCard) {
+      return (
+        <div>
+          White card not found.
+        </div>
+      )
+    }
+
+    transactions = await fetchHistory(P1_MB_TOKEN, P1WhiteCard) || []
+    transactions = filterTransactionBetween(transactions.concat(await fetchHistory(P2_MB_TOKEN, P2WhiteCard) || []))
+      .sort((a, b) => b.time - a.time)
+  } catch (err) {
+    console.error(err);
+
     return (
-      <div>
-        White card not found.
-      </div>
+      <main>
+        Can't fetch bank history.
+      </main>
     )
   }
 
-  let transactions = await fetchHistory(P1_MB_TOKEN, RNWhiteCard) || []
-  transactions = filterTransactionBetween(transactions.concat(await fetchHistory(P2_MB_TOKEN, KKWhiteCard) || []))
-    .sort((a,b) => b.time - a.time)
-
   const debit = transactions.filter(tr => tr.amount > 0)
-  const credit = transactions.filter(tr => tr.amount < 0)
+    const credit = transactions.filter(tr => tr.amount < 0)
 
   return (
     <main className={styles.main}>
-      <h2>Current balance: {moneyFormat(RNWhiteCard.balance + KKWhiteCard.balance)}</h2>
+      <h2>Current balance: {moneyFormat(P1WhiteCard.balance + P2WhiteCard.balance)}</h2>
       <h2>Cashback</h2>
-      <p>Total cashback: {moneyFormat(transactions.reduce((acc, tr) => acc + tr.cashbackAmount,0))}</p>
-      <h2>Debit</h2>
+      <p>Total cashback: {moneyFormat(transactions.reduce((acc, tr) => acc + tr.cashbackAmount, 0))}</p>
+      <h2>Debit. Total: {moneyFormat(debit.reduce((acc, tr) => acc + tr.amount, 0))}</h2>
       {
         debit.map(tr => (
           <Transaction key={tr.id} transaction={tr} />
         ))
       }
-      <h2>Credit</h2>
+      <h2>Credit. Total: {moneyFormat(credit.reduce((acc, tr) => acc + tr.amount, 0))}</h2>
       {
         credit.map(tr => (
           <Transaction key={tr.id} transaction={tr} />
@@ -115,7 +129,7 @@ const Transaction: React.FC<{ transaction: Transaction }> = ({ transaction: tr }
 
 
   return (
-    <div style={{ alignSelf: 'flex-start' }} key={tr.id}>
+    <div className={styles.transaction} key={tr.id}>
       <h3>Provider: {tr.description}</h3>
       <p>Amount: {moneyFormat(tr.amount)}</p>
       <p>Balance: {moneyFormat(tr.balance)}</p>
