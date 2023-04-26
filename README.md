@@ -29,5 +29,5 @@ PASS=some_pass
   
 You can create personal monobank token if you have monobak account [here](https://api.monobank.ua/).
 
-
+redeploy trigger
 
