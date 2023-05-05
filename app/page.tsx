@@ -1,7 +1,16 @@
-import styles from './page.module.css'
+import { DateRangeForm } from "./components/DateRangeForm";
+import styles from "./page.module.css";
+import {
+  DateRange,
+  DateRangeTypeValue,
+  currentMonth,
+  forMonth,
+  getMonthNumberFromName,
+  last30Days,
+} from "./utils/date";
 
-const P1_MB_TOKEN = process.env.P1_MB_TOKEN || ''
-const P2_MB_TOKEN = process.env.P2_MB_TOKEN || ''
+const P1_MB_TOKEN = process.env.P1_MB_TOKEN || "";
+const P2_MB_TOKEN = process.env.P2_MB_TOKEN || "";
 
 type Transaction = {
   id: string;
@@ -48,98 +57,140 @@ type Client = {
 };
 
 const fetchClient = async (token: string): Promise<Client> => {
-  const authHeader = { 'X-Token': token }
+  const authHeader = { "X-Token": token };
 
-  const mbClient: Client = await fetch('https://api.monobank.ua/personal/client-info', { next: { revalidate: 60 }, headers: authHeader })
-    .then(response => response.json())
+  const mbClient: Client = await fetch(
+    "https://api.monobank.ua/personal/client-info",
+    { next: { revalidate: 60 }, headers: authHeader }
+  ).then((response) => response.json());
 
-  return mbClient
-}
+  return mbClient;
+};
 
 const getWhiteCard = (client: Client) => {
-  return client.accounts.find(acc => acc.type === 'white')
-}
+  return client.accounts.find((acc) => acc.type === "white");
+};
 
-const fetchHistory = async (token: string, account: Account): Promise<Transaction[]> => {
-  const authHeader = { 'X-Token': token }
+const fetchHistory = async (
+  token: string,
+  account: Account,
+  dateRange: DateRangeTypeValue
+): Promise<Transaction[]> => {
+  const authHeader = { "X-Token": token };
 
-  return fetch(`https://api.monobank.ua/personal/statement/${account.id}/${Date.now() - 2629800000}/${Date.now()}`, { next: { revalidate: 60 }, headers: authHeader }).then(resp => resp.json())
-}
+  let dateRangeValue: DateRange;
+
+  switch (dateRange) {
+    case "LAST_30_DAYS":
+      dateRangeValue = last30Days();
+      break;
+    case "CURRENT_MONTH":
+      dateRangeValue = currentMonth();
+      break;
+    default:
+      const monthNumber = getMonthNumberFromName(dateRange);
+      dateRangeValue = forMonth(monthNumber);
+      break;
+  }
+
+  return fetch(
+    `https://api.monobank.ua/personal/statement/${account.id}/${dateRangeValue.from}/${dateRangeValue.to}`,
+    { next: { revalidate: 600 }, headers: authHeader }
+  ).then((resp) => resp.json());
+};
 
 const filterTransactionBetween = (transactions: Transaction[]) =>
-  transactions.filter(tr1 => !transactions.some(tr2 => tr1.amount === tr2.amount * -1 && tr1.time === tr2.time))
+  transactions.filter(
+    (tr1) =>
+      !transactions.some(
+        (tr2) => tr1.amount === tr2.amount * -1 && tr1.time === tr2.time
+      )
+  );
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
   let transactions: Transaction[] = [];
   let P1WhiteCard: Account;
   let P2WhiteCard: Account;
+  const dateRange =
+    (searchParams.dateRange as DateRangeTypeValue) || "LAST_30_DAYS";
 
   try {
-    const RNClient = await fetchClient(P1_MB_TOKEN)
-    const KKClient = await fetchClient(P2_MB_TOKEN)
-    P1WhiteCard = getWhiteCard(RNClient)!
-    P2WhiteCard = getWhiteCard(KKClient)!
+    const RNClient = await fetchClient(P1_MB_TOKEN);
+    const KKClient = await fetchClient(P2_MB_TOKEN);
+    P1WhiteCard = getWhiteCard(RNClient)!;
+    P2WhiteCard = getWhiteCard(KKClient)!;
 
     if (!P1WhiteCard || !P2WhiteCard) {
-      return (
-        <div>
-          White card not found.
-        </div>
-      )
+      return <div>White card not found.</div>;
     }
 
-    transactions = await fetchHistory(P1_MB_TOKEN, P1WhiteCard) || []
-    transactions = filterTransactionBetween(transactions.concat(await fetchHistory(P2_MB_TOKEN, P2WhiteCard) || []))
-      .sort((a, b) => b.time - a.time)
+    transactions =
+      (await fetchHistory(P1_MB_TOKEN, P1WhiteCard, dateRange)) || [];
+    transactions = filterTransactionBetween(
+      transactions.concat(
+        (await fetchHistory(P2_MB_TOKEN, P2WhiteCard, dateRange)) || []
+      )
+    ).sort((a, b) => b.time - a.time);
   } catch (err) {
     console.error(err);
 
-    return (
-      <main>
-        Can&apos;t fetch bank history.
-      </main>
-    )
+    return <main>Can&apos;t fetch bank history.</main>;
   }
 
-  const debit = transactions.filter(tr => tr.amount > 0)
-    const credit = transactions.filter(tr => tr.amount < 0)
+  const debit = transactions.filter((tr) => tr.amount > 0);
+  const credit = transactions.filter((tr) => tr.amount < 0);
 
   return (
     <main className={styles.main}>
-      <h2>Current balance: {moneyFormat(P1WhiteCard.balance + P2WhiteCard.balance)}</h2>
+      <DateRangeForm dateRange={dateRange} />
+      <h2>
+        Current balance:{" "}
+        {moneyFormat(P1WhiteCard.balance + P2WhiteCard.balance)}
+      </h2>
       <h2>Cashback</h2>
-      <p>Total cashback: {moneyFormat(transactions.reduce((acc, tr) => acc + tr.cashbackAmount, 0))}</p>
-      <h2>Debit. Total: {moneyFormat(debit.reduce((acc, tr) => acc + tr.amount, 0))}</h2>
-      {
-        debit.map(tr => (
-          <Transaction key={tr.id} transaction={tr} />
-        ))
-      }
-      <h2>Credit. Total: {moneyFormat(credit.reduce((acc, tr) => acc + tr.amount, 0))}</h2>
-      {
-        credit.map(tr => (
-          <Transaction key={tr.id} transaction={tr} />
-        ))
-      }
+      <p>
+        Total cashback:{" "}
+        {moneyFormat(
+          transactions.reduce((acc, tr) => acc + tr.cashbackAmount, 0)
+        )}
+      </p>
+      <h2>
+        Debit. Total:{" "}
+        {moneyFormat(debit.reduce((acc, tr) => acc + tr.amount, 0))}
+      </h2>
+      {debit.map((tr) => (
+        <Transaction key={tr.id} transaction={tr} />
+      ))}
+      <h2>
+        Credit. Total:{" "}
+        {moneyFormat(credit.reduce((acc, tr) => acc + tr.amount, 0))}
+      </h2>
+      {credit.map((tr) => (
+        <Transaction key={tr.id} transaction={tr} />
+      ))}
     </main>
-  )
+  );
 }
 
-const Transaction: React.FC<{ transaction: Transaction }> = ({ transaction: tr }) => {
-
-
+const Transaction: React.FC<{ transaction: Transaction }> = ({
+  transaction: tr,
+}) => {
   return (
     <div className={styles.transaction} key={tr.id}>
       <h3>Provider: {tr.description}</h3>
       <p>Amount: {moneyFormat(tr.amount)}</p>
       <p>Balance: {moneyFormat(tr.balance)}</p>
     </div>
-  )
-}
+  );
+};
 
-const moneyFormat = (n: number) => moneyFormatter.format(n / 100)
+const moneyFormat = (n: number) => moneyFormatter.format(n / 100);
 
-const moneyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'UAH',
+const moneyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "UAH",
 });

@@ -99,7 +99,6 @@ export async function GET(request: Request) {
 
   const debit = transactions.filter(tr => tr.amount > 0)
   const credit = transactions.filter(tr => tr.amount < 0)
-  console.log(debit.length, credit.length)
 
   return NextResponse.json({ debit, credit })
 }
