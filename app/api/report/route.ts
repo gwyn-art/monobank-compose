@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 /**
  * Current year report.
  * @param request API request
- * @returns 
+ * @returns
  */
 export async function GET(request: Request) {
   const currentMonth = getCurrentMonthName();
@@ -13,18 +13,16 @@ export async function GET(request: Request) {
   let transactions: Transaction[] = [];
 
   try {
+    let promiseList = [];
     for (const month of monthList) {
-      const data = await kv.get<Transaction[]>(month);
-
-      if (data) {
-        transactions = transactions.concat(data);
-      } else {
-        return  NextResponse.json({
-          status: "error",
-          error: `Fetch failed: no data for ${month}`,
-        });
-      }
+      promiseList.push(kv.get<Transaction[]>(month));
     }
+
+    const dataList = await Promise.all(promiseList);
+    transactions = dataList.reduce((acc: Transaction[], data) => {
+      return [...acc, ...(data ?? [])];
+    }, [] as Transaction[]);
+
   } catch (err) {
     return NextResponse.json({
       status: "error",
