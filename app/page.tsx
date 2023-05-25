@@ -1,111 +1,12 @@
+import { kv } from "@vercel/kv";
 import { DateRangeForm } from "./components/DateRangeForm";
+import { Monobank } from "./integration/monobank";
 import styles from "./page.module.css";
-import {
-  DateRange,
-  DateRangeTypeValue,
-  currentMonth,
-  forMonth,
-  getMonthNumberFromName,
-  last30Days,
-} from "./utils/date";
+import { DateRangeTypeValue, getCurrentMonthName } from "./utils/date";
+import { RefreshMonth } from "./components/RefreshMonth";
 
 const P1_MB_TOKEN = process.env.P1_MB_TOKEN || "";
 const P2_MB_TOKEN = process.env.P2_MB_TOKEN || "";
-
-type Transaction = {
-  id: string;
-  time: number;
-  description: string;
-  mcc: number;
-  originalMcc: number;
-  hold: boolean;
-  amount: number;
-  operationAmount: number;
-  currencyCode: number;
-  commissionRate: number;
-  cashbackAmount: number;
-  balance: number;
-  comment: string;
-  receiptId: string;
-  invoiceId: string;
-  counterEdrpou: string;
-  counterIban: string;
-  counterName: string;
-};
-
-type Account = {
-  id: string;
-  sendId: string;
-  balance: number;
-  creditLimit: number;
-  type: "black" | "white";
-  currencyCode: number;
-  cashbackType: "UAH" | "USD" | "EUR" | "RUB";
-  maskedPan: string[];
-  iban: string;
-};
-
-type Jar = Record<string, never>;
-
-type Client = {
-  clientId: string;
-  name: string;
-  webHookUrl: string;
-  permissions: string;
-  accounts: Account[];
-  jars: Jar[];
-};
-
-const fetchClient = async (token: string): Promise<Client> => {
-  const authHeader = { "X-Token": token };
-
-  const mbClient: Client = await fetch(
-    "https://api.monobank.ua/personal/client-info",
-    { next: { revalidate: 60 }, headers: authHeader }
-  ).then((response) => response.json());
-
-  return mbClient;
-};
-
-const getWhiteCard = (client: Client) => {
-  return client.accounts.find((acc) => acc.type === "white");
-};
-
-const fetchHistory = async (
-  token: string,
-  account: Account,
-  dateRange: DateRangeTypeValue
-): Promise<Transaction[]> => {
-  const authHeader = { "X-Token": token };
-
-  let dateRangeValue: DateRange;
-
-  switch (dateRange) {
-    case "LAST_30_DAYS":
-      dateRangeValue = last30Days();
-      break;
-    case "CURRENT_MONTH":
-      dateRangeValue = currentMonth();
-      break;
-    default:
-      const monthNumber = getMonthNumberFromName(dateRange);
-      dateRangeValue = forMonth(monthNumber);
-      break;
-  }
-
-  return fetch(
-    `https://api.monobank.ua/personal/statement/${account.id}/${dateRangeValue.from}/${dateRangeValue.to}`,
-    { next: { revalidate: 600 }, headers: authHeader }
-  ).then((resp) => resp.json());
-};
-
-const filterTransactionBetween = (transactions: Transaction[]) =>
-  transactions.filter(
-    (tr1) =>
-      !transactions.some(
-        (tr2) => tr1.amount === tr2.amount * -1 && tr1.time === tr2.time
-      )
-  );
 
 export default async function Home({
   searchParams,
@@ -116,25 +17,31 @@ export default async function Home({
   let P1WhiteCard: Account;
   let P2WhiteCard: Account;
   const dateRange =
-    (searchParams.dateRange as DateRangeTypeValue) || "LAST_30_DAYS";
+    (searchParams.dateRange as DateRangeTypeValue) || getCurrentMonthName();
+  console.log("🚀 ~ file: page.tsx:22 ~ dateRange:", dateRange);
 
   try {
-    const RNClient = await fetchClient(P1_MB_TOKEN);
-    const KKClient = await fetchClient(P2_MB_TOKEN);
-    P1WhiteCard = getWhiteCard(RNClient)!;
-    P2WhiteCard = getWhiteCard(KKClient)!;
+    const P1Account = Monobank.getWhiteCard(
+      await Monobank.fetchClient(P1_MB_TOKEN)
+    );
+    const P2Account = Monobank.getWhiteCard(
+      await Monobank.fetchClient(P2_MB_TOKEN)
+    );
 
-    if (!P1WhiteCard || !P2WhiteCard) {
-      return <div>White card not found.</div>;
+    if (!P1Account || !P2Account) {
+      return <main>Can&apos;t fetch bank account.</main>;
     }
 
-    transactions =
-      (await fetchHistory(P1_MB_TOKEN, P1WhiteCard, dateRange)) || [];
-    transactions = filterTransactionBetween(
-      transactions.concat(
-        (await fetchHistory(P2_MB_TOKEN, P2WhiteCard, dateRange)) || []
-      )
-    ).sort((a, b) => b.time - a.time);
+    P1WhiteCard = P1Account;
+    P2WhiteCard = P2Account;
+
+    const transactionsData = await kv.get<Transaction[]>(dateRange);
+
+    if (!transactionsData) {
+      return <main>Can&apos;t fetch bank history for this period.</main>;
+    }
+
+    transactions = transactionsData;
   } catch (err) {
     console.error(err);
 
@@ -147,6 +54,7 @@ export default async function Home({
   return (
     <main className={styles.main}>
       <DateRangeForm dateRange={dateRange} />
+      <RefreshMonth dateRange={dateRange} />
       <h2>
         Current balance:{" "}
         {moneyFormat(P1WhiteCard.balance + P2WhiteCard.balance)}

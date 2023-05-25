@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { DateRangeKey, DateRangeTypeValue, getMonthNameFromNumber, getMonthNumberFromName } from "../utils/date";
+import { DateRangeKey, DateRangeTypeValue, getMonthNameFromNumber, getMonthNumberFromName, isMonthName } from "../utils/date";
 
 
 export const DateRangeForm: React.FC<{ dateRange: DateRangeTypeValue }> = ({
@@ -11,7 +11,8 @@ export const DateRangeForm: React.FC<{ dateRange: DateRangeTypeValue }> = ({
   
     return (
       <form>
-        <input
+        {/* REMOVED FOR NOW */}
+        {/* <input
           type="radio"
           id="last30Days"
           name="dateRange"
@@ -32,13 +33,12 @@ export const DateRangeForm: React.FC<{ dateRange: DateRangeTypeValue }> = ({
             router.push(`/?${DateRangeKey}=CURRENT_MONTH`);
           }}
         />
-        <label htmlFor="currentMonth">Current month</label>
+        <label htmlFor="currentMonth">Current month</label> */}
         <label htmlFor="customMonth">Custom month</label>
         <select
           name="month"
           id="customMonth"
-          defaultValue="not_selected"
-          value={getMonthNumberFromName(dateRange)}
+          value={isMonthName(dateRange) ? getMonthNumberFromName(dateRange) : "not_selected"}
           onChange={(e) => {
             const month = parseInt(e.target.value);
             router.push(`/?${DateRangeKey}=${getMonthNameFromNumber(month)}`);
@@ -49,7 +49,6 @@ export const DateRangeForm: React.FC<{ dateRange: DateRangeTypeValue }> = ({
             <option
               key={month}
               value={month}
-              selected={getMonthNameFromNumber(month) === dateRange}
             >
               {getMonthNameFromNumber(month)}
             </option>

@@ -32,6 +32,12 @@ export const currentMonth = (): DateRange => {
   return { from, to };
 };
 
+export const getCurrentMonthName = (): DateRangeTypeValue => {
+    const now = new Date();
+    const monthName = now.toLocaleString("en-US", { month: "long" }).toUpperCase();
+    return monthName as DateRangeTypeValue;
+};
+
 export const forMonth = (month: number): DateRange => {
   const now = new Date();
   const to = new Date(now.getFullYear(), month, 1).getTime();
@@ -45,6 +51,10 @@ export const getMonthNumberFromName = (monthName: string) => {
   return new Date(`${monthName} 1, 2022`).getMonth() + 1;
 };
 
+export const isMonthName = (monthName: DateRangeTypeValue) => {
+  return DateRangeMonth.includes(monthName);
+};
+
 export const getMonthNameFromNumber = (monthNumber: number) => {
   const date = new Date();
   date.setMonth(monthNumber - 1);
@@ -52,18 +62,32 @@ export const getMonthNameFromNumber = (monthNumber: number) => {
   return date.toLocaleString("en-US", { month: "long" }).toUpperCase();
 };
 
-export type DateRangeTypeValue =
-  | "LAST_30_DAYS"
-  | "CURRENT_MONTH"
-  | "JANUARY"
-  | "FEBRUARY"
-  | "MARCH"
-  | "APRIL"
-  | "MAY"
-  | "JUNE"
-  | "JULY"
-  | "AUGUST"
-  | "SEPTEMBER"
-  | "OCTOBER"
-  | "NOVEMBER"
-  | "DECEMBER";
+export const getMonthListFrom = (monthName: DateRangeTypeValue) => {
+    const monthNumber = getMonthNumberFromName(monthName);
+    const monthList = DateRangeMonth.slice(0, monthNumber);
+    
+    return monthList;
+}
+
+export type DateRangeTypeValue<T = string> = T extends typeof DateRangeMonth
+  ? (typeof DateRangeMonth)[number]
+  : T extends typeof DateRangeLatest
+  ? (typeof DateRangeLatest)[number]
+  : never;
+
+const DateRangeLatest = ["LAST_30_DAYS", "CURRENT_MONTH"];
+
+const DateRangeMonth = [
+  "JANUARY",
+  "FEBRUARY",
+  "MARCH",
+  "APRIL",
+  "MAY",
+  "JUNE",
+  "JULY",
+  "AUGUST",
+  "SEPTEMBER",
+  "OCTOBER",
+  "NOVEMBER",
+  "DECEMBER",
+] as const;
