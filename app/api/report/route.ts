@@ -10,14 +10,14 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const currentMonth = getCurrentMonthName();
   const monthList = getMonthListFrom(currentMonth);
-  const transactions: Transaction[] = [];
+  let transactions: Transaction[] = [];
 
   try {
     for (const month of monthList) {
       const data = await kv.get<Transaction[]>(month);
 
       if (data) {
-        transactions.concat(data);
+        transactions = transactions.concat(data);
       } else {
         return  NextResponse.json({
           status: "error",
