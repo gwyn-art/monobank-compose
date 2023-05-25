@@ -2,6 +2,9 @@ import { getCurrentMonthName, getMonthListFrom } from "@/app/utils/date";
 import { kv } from "@vercel/kv";
 import { NextResponse } from "next/server";
 
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 /**
  * Current year report.
  * @param request API request
