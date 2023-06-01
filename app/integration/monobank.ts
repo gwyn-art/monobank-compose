@@ -16,7 +16,9 @@ export namespace Monobank {
   const ClientCache = new Map<string, { client: Client; time: number }>();
   export const fetchClient = async (token: string): Promise<Client> => {
     const cached = ClientCache.get(token);
+    console.log("🚀 ~ file: monobank.ts:19 ~ fetchClient ~ date.now, cached:", Date.now(), cached?.time)
     if (cached && Date.now() - cached.time < CACHE_TIME) {
+      console.log('return from cache:', cached.client)
       return cached.client;
     }
     const authHeader = { "X-Token": token };
@@ -24,6 +26,7 @@ export namespace Monobank {
       "https://api.monobank.ua/personal/client-info",
       { headers: authHeader, next: { revalidate: 60 } }
     ).then((response) => response.json());
+    console.log("return new:", mbClient)
 
     ClientCache.set(token, { client: mbClient, time: Date.now() });
 
