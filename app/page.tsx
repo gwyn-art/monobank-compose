@@ -4,6 +4,7 @@ import { Monobank } from "./integration/monobank";
 import styles from "./page.module.css";
 import { DateRangeTypeValue, getCurrentMonthName } from "./utils/date";
 import { RefreshMonth } from "./components/RefreshMonth";
+import TabMenu from "./components/TabMenu";
 
 const P1_MB_TOKEN = process.env.P1_MB_TOKEN || "";
 const P2_MB_TOKEN = process.env.P2_MB_TOKEN || "";
@@ -18,7 +19,6 @@ export default async function Home({
   let P2WhiteCard: Account;
   const dateRange =
     (searchParams.dateRange as DateRangeTypeValue) || getCurrentMonthName();
-  console.log("🚀 ~ file: page.tsx:22 ~ dateRange:", dateRange);
 
   try {
     const P1Account = Monobank.getWhiteCard(
@@ -62,20 +62,38 @@ export default async function Home({
           transactions.reduce((acc, tr) => acc + tr.cashbackAmount, 0)
         )}
       </p>
-      <h2>
-        Debit. Total:{" "}
-        {moneyFormat(debit.reduce((acc, tr) => acc + tr.amount, 0))}
-      </h2>
-      {debit.map((tr) => (
-        <Transaction key={tr.id} transaction={tr} />
-      ))}
-      <h2>
-        Credit. Total:{" "}
-        {moneyFormat(credit.reduce((acc, tr) => acc + tr.amount, 0))}
-      </h2>
-      {credit.map((tr) => (
-        <Transaction key={tr.id} transaction={tr} />
-      ))}
+      <TabMenu
+        tabs={[
+          {
+            title: "Credit",
+            content: (
+              <div>
+                <h2>
+                  Credit. Total:{" "}
+                  {moneyFormat(credit.reduce((acc, tr) => acc + tr.amount, 0))}
+                </h2>
+                {credit.map((tr) => (
+                  <Transaction key={tr.id} transaction={tr} />
+                ))}
+              </div>
+            ),
+          },
+          {
+            title: "Debit",
+            content: (
+              <div role="tabpanel" id="tabpanel-debit">
+                <h2>
+                  Debit. Total:{" "}
+                  {moneyFormat(debit.reduce((acc, tr) => acc + tr.amount, 0))}
+                </h2>
+                {debit.map((tr) => (
+                  <Transaction key={tr.id} transaction={tr} />
+                ))}
+              </div>
+            ),
+          },
+        ]}
+      />
     </main>
   );
 }
