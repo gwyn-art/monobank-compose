@@ -10,22 +10,25 @@ import {
 const P1_MB_TOKEN = process.env.P1_MB_TOKEN || "";
 const P2_MB_TOKEN = process.env.P2_MB_TOKEN || "";
 
-const CACHE_TIME = 1000 * 60 * 10;
+const CACHE_TIME = 1000 * 60;
 
 export namespace Monobank {
   const ClientCache = new Map<string, { client: Client; time: number }>();
   export const fetchClient = async (token: string): Promise<Client> => {
     const cached = ClientCache.get(token);
-    console.log("🚀 ~ file: monobank.ts:19 ~ fetchClient ~ date.now, cached:", Date.now(), cached?.time)
+    console.log("🚀 ~ Cache info (date.now/cached.time):", Date.now(), cached?.time)
+    
     if (cached && Date.now() - cached.time < CACHE_TIME) {
       console.log('return from cache:', cached.client)
       return cached.client;
     }
+
     const authHeader = { "X-Token": token };
     const mbClient: Client = await fetch(
       "https://api.monobank.ua/personal/client-info",
-      { headers: authHeader, next: { revalidate: 60 } }
+      { headers: authHeader, cache: 'no-store', next: { revalidate: 0 } }
     ).then((response) => response.json());
+
     console.log("return new:", mbClient)
 
     ClientCache.set(token, { client: mbClient, time: Date.now() });
