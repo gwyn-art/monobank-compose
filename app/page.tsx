@@ -37,11 +37,7 @@ export default async function Home({
 
     const transactionsData = await kv.get<Transaction[]>(dateRange);
 
-    if (!transactionsData) {
-      return <main>Can&apos;t fetch bank history for this period.</main>;
-    }
-
-    transactions = transactionsData;
+    transactions = transactionsData ?? [];
   } catch (err) {
     console.error(err);
 
