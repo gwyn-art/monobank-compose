@@ -22,7 +22,7 @@ export namespace Monobank {
     const authHeader = { "X-Token": token };
     const mbClient: Client = await fetch(
       "https://api.monobank.ua/personal/client-info",
-      { headers: authHeader }
+      { headers: authHeader, next: { revalidate: 60 } }
     ).then((response) => response.json());
 
     ClientCache.set(token, { client: mbClient, time: Date.now() });
