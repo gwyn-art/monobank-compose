@@ -58,6 +58,12 @@ export default async function Home({
         Current balance:{" "}
         {Money.format(P1WhiteCard.balance + P2WhiteCard.balance)}
       </h2>
+      <p>
+        Ruslan balance: {Money.format(P1WhiteCard.balance)}
+      </p>
+      <p>
+        Katya balance: {Money.format(P2WhiteCard.balance)}
+      </p>
       <h2>Cashback</h2>
       <p>
         Total cashback:{" "}

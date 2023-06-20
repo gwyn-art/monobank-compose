@@ -22,8 +22,17 @@ export const Transaction: React.FC<{ transaction: Transaction }> = ({
       </div>
       <div hidden={!isOpen}>
         <p>Balance: {Money.format(tr.balance)}</p>
+        {tr.cashbackAmount && (
+          <p>Cashback: {Money.format(tr.cashbackAmount)}</p>
+        )}
+        {tr.comment && <p>Comment: {tr.comment}</p>}
         <p className={styles.transactionTime}>
-          <span>{new Date(tr.time * 1000).toLocaleString(LOCALE, { dateStyle: 'long', timeStyle: 'long'})}</span>
+          <span>
+            {new Date(tr.time * 1000).toLocaleString(LOCALE, {
+              dateStyle: "long",
+              timeStyle: "short",
+            })}
+          </span>
         </p>
       </div>
     </div>
