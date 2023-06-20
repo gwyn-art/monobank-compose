@@ -5,6 +5,9 @@ import styles from "./page.module.css";
 import { DateRangeTypeValue, getCurrentMonthName } from "./utils/date";
 import { RefreshMonth } from "./components/RefreshMonth";
 import TabMenu from "./components/TabMenu";
+import { Money } from "./utils/money";
+import { Transaction } from "./components/Transaction";
+import { LOCALE } from "./utils/locale";
 
 const P1_MB_TOKEN = process.env.P1_MB_TOKEN || "";
 const P2_MB_TOKEN = process.env.P2_MB_TOKEN || "";
@@ -53,12 +56,12 @@ export default async function Home({
       <RefreshMonth dateRange={dateRange} />
       <h2>
         Current balance:{" "}
-        {moneyFormat(P1WhiteCard.balance + P2WhiteCard.balance)}
+        {Money.format(P1WhiteCard.balance + P2WhiteCard.balance)}
       </h2>
       <h2>Cashback</h2>
       <p>
         Total cashback:{" "}
-        {moneyFormat(
+        {Money.format(
           transactions.reduce((acc, tr) => acc + tr.cashbackAmount, 0)
         )}
       </p>
@@ -70,11 +73,9 @@ export default async function Home({
               <div>
                 <h2>
                   Credit. Total:{" "}
-                  {moneyFormat(credit.reduce((acc, tr) => acc + tr.amount, 0))}
+                  {Money.format(credit.reduce((acc, tr) => acc + tr.amount, 0))}
                 </h2>
-                {credit.map((tr) => (
-                  <Transaction key={tr.id} transaction={tr} />
-                ))}
+                <TransactionList transactions={credit} />
               </div>
             ),
           },
@@ -84,11 +85,9 @@ export default async function Home({
               <div role="tabpanel" id="tabpanel-debit">
                 <h2>
                   Debit. Total:{" "}
-                  {moneyFormat(debit.reduce((acc, tr) => acc + tr.amount, 0))}
+                  {Money.format(debit.reduce((acc, tr) => acc + tr.amount, 0))}
                 </h2>
-                {debit.map((tr) => (
-                  <Transaction key={tr.id} transaction={tr} />
-                ))}
+                <TransactionList transactions={debit} />
               </div>
             ),
           },
@@ -98,21 +97,44 @@ export default async function Home({
   );
 }
 
-const Transaction: React.FC<{ transaction: Transaction }> = ({
-  transaction: tr,
+const TransactionList: React.FC<{ transactions: Transaction[] }> = ({
+  transactions,
 }) => {
+  let prevDate: string | null = null;
+  const transactionGroupDateIterator = (() => {
+    let prevDate: string | null = null;
+
+    const TransactionGroupDateIterator = (tr: Transaction) => {
+      if (!prevDate) {
+        prevDate = new Date(tr.time * 1000).toLocaleDateString(LOCALE, { dateStyle: 'long' });
+
+        return <TransactionGroupTitle date={prevDate} />;
+      }
+
+      if (prevDate === new Date(tr.time * 1000).toLocaleDateString(LOCALE, { dateStyle: 'long' })) {
+        return null;
+      }
+
+      prevDate = new Date(tr.time * 1000).toLocaleDateString(LOCALE, { dateStyle: 'long' });
+
+      return <TransactionGroupTitle date={prevDate} />;
+    };
+
+    return TransactionGroupDateIterator;
+  })();
+
   return (
-    <div className={styles.transaction} key={tr.id}>
-      <h3>Provider: {tr.description}</h3>
-      <p>Amount: {moneyFormat(tr.amount)}</p>
-      <p>Balance: {moneyFormat(tr.balance)}</p>
-    </div>
+    <>
+      {transactions.map((tr) => (
+        <>
+          {transactionGroupDateIterator(tr)}
+          <Transaction key={tr.id} transaction={tr} />
+        </>
+      ))}
+    </>
   );
 };
 
-const moneyFormat = (n: number) => moneyFormatter.format(n / 100);
-
-const moneyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "UAH",
-});
+const TransactionGroupTitle: React.FC<{ date: string }> = ({ date }) => {
+  return <h3>{date}</h3>;
+};

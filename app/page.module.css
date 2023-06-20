@@ -9,20 +9,3 @@
 .main h2 {
   margin: 30px 0px;
 }
-
-
-.transaction {
-  margin: 14px 0px;
-}
-
-.transaction h3 {
-  font-size: 25px;
-}
-
-.transaction p {
-  font-size: 18px;
-}
-
-.transaction > * {
-  margin: 10px 0;
-}
