@@ -71,11 +71,7 @@ export const getMonthListFrom = (monthName: DateRangeTypeValue) => {
 
 export type DateRangeTypeValue<T = string> = T extends typeof DateRangeMonth
   ? (typeof DateRangeMonth)[number]
-  : T extends typeof DateRangeLatest
-  ? (typeof DateRangeLatest)[number]
   : never;
-
-const DateRangeLatest = ["LAST_30_DAYS", "CURRENT_MONTH"];
 
 const DateRangeMonth = [
   "JANUARY",

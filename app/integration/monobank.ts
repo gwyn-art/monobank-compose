@@ -1,10 +1,7 @@
 import {
-  DateRange,
   DateRangeTypeValue,
-  currentMonth,
   forMonth,
   getMonthNumberFromName,
-  last30Days,
 } from "../utils/date";
 
 const P1_MB_TOKEN = process.env.P1_MB_TOKEN || "";
@@ -16,20 +13,16 @@ export namespace Monobank {
   const ClientCache = new Map<string, { client: Client; time: number }>();
   export const fetchClient = async (token: string): Promise<Client> => {
     const cached = ClientCache.get(token);
-    console.log("🚀 ~ Cache info (date.now/cached.time):", Date.now(), cached?.time)
-    
+
     if (cached && Date.now() - cached.time < CACHE_TIME) {
-      console.log('return from cache:', cached.client)
       return cached.client;
     }
 
     const authHeader = { "X-Token": token };
     const mbClient: Client = await fetch(
       "https://api.monobank.ua/personal/client-info",
-      { headers: authHeader, cache: 'no-store', next: { revalidate: 0 } }
+      { headers: authHeader, cache: "no-store", next: { revalidate: 0 } }
     ).then((response) => response.json());
-
-    console.log("return new:", mbClient)
 
     ClientCache.set(token, { client: mbClient, time: Date.now() });
 
@@ -37,7 +30,7 @@ export namespace Monobank {
   };
 
   export const getWhiteCard = (client: Client) => {
-    return client.accounts.find((acc) => acc.type === "white");
+    return client.accounts?.find((acc) => acc.type === "white");
   };
 
   export const fetchHistory = async (
@@ -47,20 +40,8 @@ export namespace Monobank {
   ): Promise<Transaction[]> => {
     const authHeader = { "X-Token": token };
 
-    let dateRangeValue: DateRange;
-
-    switch (dateRange) {
-      case "LAST_30_DAYS":
-        dateRangeValue = last30Days();
-        break;
-      case "CURRENT_MONTH":
-        dateRangeValue = currentMonth();
-        break;
-      default:
-        const monthNumber = getMonthNumberFromName(dateRange);
-        dateRangeValue = forMonth(monthNumber);
-        break;
-    }
+    const monthNumber = getMonthNumberFromName(dateRange);
+    const dateRangeValue = forMonth(monthNumber);
 
     return fetch(
       `https://api.monobank.ua/personal/statement/${account.id}/${dateRangeValue.from}/${dateRangeValue.to}`,
@@ -71,9 +52,20 @@ export namespace Monobank {
   export const filterTransactionBetween = (transactions: Transaction[]) =>
     transactions.filter(
       (tr1) =>
-        !transactions.some(
-          (tr2) => tr1.amount === tr2.amount * -1 && tr1.time === tr2.time
-        )
+        !transactions.some((tr2) => {
+          const isTransactionBetweenAccounts =
+            Math.abs(tr1.amount) === Math.abs(tr2.amount) &&
+            Math.abs(tr1.time - tr2.time) < 100 &&
+            tr1.id !== tr2.id;
+
+          if (
+            tr1.description?.toLowerCase().includes("руслан") ||
+            tr2.description?.toLowerCase().includes("катерина")
+          ) {
+            console.log("ruslan/kateryna", tr1, tr2);
+          }
+          return isTransactionBetweenAccounts;
+        })
     );
 
   export const complete = async (dateRange: DateRangeTypeValue) => {
@@ -82,26 +74,29 @@ export namespace Monobank {
     let P2WhiteCard: Account;
 
     try {
-      const RNClient = await fetchClient(P1_MB_TOKEN);
-      const KKClient = await fetchClient(P2_MB_TOKEN);
-      P1WhiteCard = getWhiteCard(RNClient)!;
-      P2WhiteCard = getWhiteCard(KKClient)!;
+      const [P1Client, P2Client] = await Promise.all([
+        fetchClient(P1_MB_TOKEN),
+        fetchClient(P2_MB_TOKEN),
+      ]);
+      P1WhiteCard = getWhiteCard(P1Client)!;
+      P2WhiteCard = getWhiteCard(P2Client)!;
 
       if (!P1WhiteCard || !P2WhiteCard) {
         throw new Error("White card not found.");
       }
 
-      transactions =
-        (await fetchHistory(P1_MB_TOKEN, P1WhiteCard, dateRange)) || [];
-      transactions = filterTransactionBetween(
-        transactions.concat(
-          (await fetchHistory(P2_MB_TOKEN, P2WhiteCard, dateRange)) || []
-        )
-      ).sort((a, b) => b.time - a.time);
-    } catch (err) {
-      console.error(err);
+      const [transactions_1 = [], transactions_2 = []] = await Promise.all([
+        fetchHistory(P1_MB_TOKEN, P1WhiteCard, dateRange),
+        fetchHistory(P2_MB_TOKEN, P2WhiteCard, dateRange),
+      ]);
 
-      throw new Error("Could not fetch.");
+      const allTransactions = [...transactions_1, ...transactions_2];
+
+      transactions = filterTransactionBetween(allTransactions).sort(
+        (a, b) => b.time - a.time
+      );
+    } catch (err) {
+      throw new Error("Could not fetch: " + err);
     }
 
     const debit = transactions.filter((tr) => tr.amount > 0);
