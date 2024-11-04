@@ -2,6 +2,7 @@ type Transaction = {
   id: string;
   time: number;
   description: string;
+  accountId: string;
   mcc: number;
   originalMcc: number;
   hold: boolean;

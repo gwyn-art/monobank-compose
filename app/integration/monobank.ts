@@ -19,10 +19,16 @@ export namespace Monobank {
     }
 
     const authHeader = { "X-Token": token };
-    const mbClient: Client = await fetch(
+    const response = await fetch(
       "https://api.monobank.ua/personal/client-info",
       { headers: authHeader, cache: "no-store", next: { revalidate: 0 } }
-    ).then((response) => response.json());
+    );
+
+    if (!response.ok) {
+      throw new Error("Could not fetch client info: " + response.statusText);
+    }
+
+    const mbClient: Client = await response.json();
 
     ClientCache.set(token, { client: mbClient, time: Date.now() });
 
@@ -33,20 +39,36 @@ export namespace Monobank {
     return client.accounts?.find((acc) => acc.type === "white");
   };
 
+  const HistoryCache = new Map<string, { transactions: Transaction[]; time: number }>();
+
   export const fetchHistory = async (
     token: string,
-    account: Account,
+    account: Account, 
     dateRange: DateRangeTypeValue
   ): Promise<Transaction[]> => {
+    const cacheKey = `${token}-${account.id}-${dateRange}`;
+    const cached = HistoryCache.get(cacheKey);
+
+    if (cached && Date.now() - cached.time < CACHE_TIME) {
+      return cached.transactions;
+    }
+
     const authHeader = { "X-Token": token };
 
     const monthNumber = getMonthNumberFromName(dateRange);
     const dateRangeValue = forMonth(monthNumber);
 
-    return fetch(
+    const transactions = await fetch(
       `https://api.monobank.ua/personal/statement/${account.id}/${dateRangeValue.from}/${dateRangeValue.to}`,
       { next: { revalidate: 600 }, headers: authHeader }
     ).then((resp) => resp.json());
+
+    HistoryCache.set(cacheKey, {
+      transactions,
+      time: Date.now()
+    });
+
+    return transactions.map((tr: Transaction) => ({ ...tr, accountId: account.id }));
   };
 
   export const filterTransactionBetween = (transactions: Transaction[]) =>

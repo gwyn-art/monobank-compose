@@ -3,6 +3,7 @@ const nextConfig = {
   experimental: {
     appDir: true,
   },
+  transpilePackages: ["@radix-ui"],
 }
 
 module.exports = nextConfig

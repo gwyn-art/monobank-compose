@@ -2,10 +2,14 @@
 
 import { useState } from "react";
 import { DateRangeTypeValue } from "../utils/date";
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
 
-export const RefreshMonth: React.FC<{ dateRange: DateRangeTypeValue }> = ({
-  dateRange,
-}) => {
+interface RefreshMonthProps {
+  dateRange: DateRangeTypeValue
+}
+
+export const RefreshMonth = ({ dateRange }: RefreshMonthProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
@@ -14,11 +18,11 @@ export const RefreshMonth: React.FC<{ dateRange: DateRangeTypeValue }> = ({
     const res = await (
       await fetch(`/api/refresh?dateRange=${dateRange}`)
     ).json();
-    setLoading(false);
-    console.log("🚀 ~ file: RefreshMonth.tsx:17 ~ handleClick ~ res:", res);
+    
 
     if (res.status === "error") {
       setError(true);
+      setLoading(false);
       return;
     }
 
@@ -26,8 +30,15 @@ export const RefreshMonth: React.FC<{ dateRange: DateRangeTypeValue }> = ({
   };
 
   return (
-    <button onClick={handleClick} style={{ width: "200px", marginTop: "20px" }}>
-      Refresh {loading ? "..." : ""} {error ? "Refresh error" : ""}
-    </button>
+    <Button 
+      size="sm" 
+      variant="outline" 
+      className="border-slate-700 hover:bg-slate-800"
+      onClick={handleClick}
+      disabled={loading}
+    >
+      <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+      {loading ? 'Refreshing...' : error ? 'Error' : 'Refresh'}
+    </Button>
   );
 };

@@ -1,4 +1,5 @@
 import './globals.css'
+import { ThemeProvider } from "next-themes"
 
 export const metadata = {
   title: 'Create Next App',
@@ -12,7 +13,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ThemeProvider attribute="class" defaultTheme="dark">
+          {children}
+        </ThemeProvider>
+      </body>
     </html>
   )
 }

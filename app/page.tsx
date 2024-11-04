@@ -1,13 +1,13 @@
 import { kv } from "@vercel/kv";
-import { DateRangeForm } from "./components/DateRangeForm";
+import { MonthSelector } from "./components/MonthSelector";
 import { Monobank } from "./integration/monobank";
-import styles from "./page.module.css";
 import { DateRangeTypeValue, getCurrentMonthName } from "./utils/date";
 import { RefreshMonth } from "./components/RefreshMonth";
-import TabMenu from "./components/TabMenu";
-import { Money } from "./utils/money";
-import { Transaction } from "./components/Transaction";
 import { LOCALE } from "./utils/locale";
+import { TransactionsList } from "./components/TransactionList";
+import { TotalBalance } from "./components/TotalBalance";
+import { AccountsList } from "./components/Account";
+import { Cashback } from "./components/Cashback";
 
 const P1_MB_TOKEN = process.env.P1_MB_TOKEN || "";
 const P2_MB_TOKEN = process.env.P2_MB_TOKEN || "";
@@ -51,96 +51,37 @@ export default async function Home({
   const credit = transactions.filter((tr) => tr.amount < 0);
 
   return (
-    <main className={styles.main}>
-      <DateRangeForm dateRange={dateRange} />
-      <RefreshMonth dateRange={dateRange} />
-      <h2>
-        Current balance:{" "}
-        {Money.format(P1WhiteCard.balance + P2WhiteCard.balance)}
-      </h2>
-      <p>
-        Ruslan balance: {Money.format(P1WhiteCard.balance)}
-      </p>
-      <p>
-        Katya balance: {Money.format(P2WhiteCard.balance)}
-      </p>
-      <h2>Cashback</h2>
-      <p>
-        Total cashback:{" "}
-        {Money.format(
-          transactions.reduce((acc, tr) => acc + tr.cashbackAmount, 0)
-        )}
-      </p>
-      <TabMenu
-        tabs={[
+    <main className="p-4 max-w-4xl mx-auto space-y-4 bg-slate-950 min-h-screen text-slate-100">
+      <div className="flex justify-between items-center">
+        <MonthSelector dateRange={dateRange} />
+        <RefreshMonth dateRange={dateRange} />
+      </div>
+      <TotalBalance balance={P1WhiteCard.balance + P2WhiteCard.balance} />
+      <AccountsList
+        accounts={[
           {
-            title: "Credit",
-            content: (
-              <div>
-                <h2>
-                  Credit. Total:{" "}
-                  {Money.format(credit.reduce((acc, tr) => acc + tr.amount, 0))}
-                </h2>
-                <TransactionList transactions={credit} />
-              </div>
-            ),
+            id: P1WhiteCard.id,
+            name: 'Ruslan',
+            balance: P1WhiteCard.balance,
+            type: P1WhiteCard.type,
           },
           {
-            title: "Debit",
-            content: (
-              <div role="tabpanel" id="tabpanel-debit">
-                <h2>
-                  Debit. Total:{" "}
-                  {Money.format(debit.reduce((acc, tr) => acc + tr.amount, 0))}
-                </h2>
-                <TransactionList transactions={debit} />
-              </div>
-            ),
+            id: P2WhiteCard.id,
+            name: 'Katya',
+            balance: P2WhiteCard.balance,
+            type: P2WhiteCard.type,
           },
         ]}
       />
+      <Cashback cashback={transactions.reduce((acc, tr) => acc + tr.cashbackAmount, 0)} />
+      <TransactionsList transactions={transactions.map(t => ({
+        ...t,
+        id: t.id,
+        date: new Date(t.time * 1000).toLocaleDateString(LOCALE, { dateStyle: 'long' }),
+        category: t.description,
+        merchant: t.mcc.toString(),
+        reference: t.mcc.toString(),
+      }))} />
     </main>
   );
 }
-
-const TransactionList: React.FC<{ transactions: Transaction[] }> = ({
-  transactions,
-}) => {
-  let prevDate: string | null = null;
-  const transactionGroupDateIterator = (() => {
-    let prevDate: string | null = null;
-
-    const TransactionGroupDateIterator = (tr: Transaction) => {
-      if (!prevDate) {
-        prevDate = new Date(tr.time * 1000).toLocaleDateString(LOCALE, { dateStyle: 'long' });
-
-        return <TransactionGroupTitle date={prevDate} />;
-      }
-
-      if (prevDate === new Date(tr.time * 1000).toLocaleDateString(LOCALE, { dateStyle: 'long' })) {
-        return null;
-      }
-
-      prevDate = new Date(tr.time * 1000).toLocaleDateString(LOCALE, { dateStyle: 'long' });
-
-      return <TransactionGroupTitle date={prevDate} />;
-    };
-
-    return TransactionGroupDateIterator;
-  })();
-
-  return (
-    <>
-      {transactions.map((tr) => (
-        <>
-          {transactionGroupDateIterator(tr)}
-          <Transaction key={tr.id} transaction={tr} />
-        </>
-      ))}
-    </>
-  );
-};
-
-const TransactionGroupTitle: React.FC<{ date: string }> = ({ date }) => {
-  return <h3>{date}</h3>;
-};
