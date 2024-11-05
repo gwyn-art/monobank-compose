@@ -14,7 +14,8 @@ interface DailyTotal {
     balance: number;
 }
 
-export const TransactionGraph = ({ transactions }: TransactionGraphProps) => {
+export const TransactionGraph = ({ transactions: _transactions }: TransactionGraphProps) => {
+    const transactions = _transactions.reverse();
     // Find first transaction for each account
     const firstTransactions = transactions.reduce((acc: { [key: string]: UITransaction }, curr) => {
         if (!acc[curr.accountId]) {
@@ -24,10 +25,11 @@ export const TransactionGraph = ({ transactions }: TransactionGraphProps) => {
     }, {});
 
     // Get balance at the start of the month
-    let startBalance = Object.values(firstTransactions).reduce((acc, curr) => acc + curr.balance, 0) / 100;
+    let startBalance = Object.values(firstTransactions).reduce((acc, curr) => acc + curr.balance + curr.amount, 0) / 100;
 
     // Process transactions into daily totals
     const dailyTotals = transactions.reduce((acc: { [key: string]: DailyTotal }, curr) => {
+        console.log('Processing transaction for date:', curr.date);
         const date = curr.date;
         if (!acc[date]) {
             acc[date] = {
