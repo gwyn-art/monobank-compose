@@ -14,14 +14,6 @@ interface TransactionsListProps {
 export const TransactionsList = ({
     transactions,
 }: TransactionsListProps) => {
-    const [expanded, setExpanded] = useState<Set<string>>(new Set());
-    const toggleExpanded = (id: string) => {
-        setExpanded(prev => {
-            const next = new Set(prev);
-            next.has(id) ? next.delete(id) : next.add(id);
-            return next;
-        });
-    };
 
     const [filter, setFilter] = useState<'all' | 'debit' | 'credit'>('all');
 
@@ -42,6 +34,12 @@ export const TransactionsList = ({
             <Card className="bg-slate-900 border-slate-800">
                 <CardHeader>
                     <FilterButtons filter={filter} setFilter={setFilter} />
+                    <CardTitle className="text-slate-100 flex justify-between items-center">
+                        <span>Diff:</span>
+                        <span className={filteredTransactions.reduce((sum, tr) => sum + tr.amount, 0) > 0 ? 'text-green-400' : 'text-red-400'}>
+                            {Money.format(filteredTransactions.reduce((sum, tr) => sum + tr.amount, 0))}
+                        </span>
+                    </CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-2">
@@ -49,8 +47,6 @@ export const TransactionsList = ({
                             <TransactionItem
                                 key={transaction.id}
                                 transaction={transaction}
-                                isExpanded={expanded.has(transaction.id)}
-                                onToggle={toggleExpanded}
                             />
                         ))}
                     </div>
@@ -62,43 +58,51 @@ export const TransactionsList = ({
 
 interface TransactionItemProps {
     transaction: UITransaction;
-    isExpanded: boolean;
-    onToggle: (id: string) => void;
+    onToggle?: (id: string) => void;
 }
 
-export const TransactionItem = ({ transaction, isExpanded, onToggle }: TransactionItemProps) => (
-    <div
-        className="border border-slate-800 rounded p-3 cursor-pointer hover:bg-slate-800 transition-colors"
-        onClick={() => onToggle(transaction.id)}
-    >
-        <div className="flex justify-between items-center">
-            <div>
-                <div className="font-medium text-slate-100">{transaction.description}</div>
-                <div className="text-sm text-slate-400">{transaction.date}</div>
-            </div>
-            <div className="flex items-center gap-2">
-                <span className={`font-medium ${transaction.amount < 0 ? 'text-red-400' : 'text-green-400'}`}>
-                    {Money.format(transaction.amount)}
-                </span>
-                {isExpanded ? (
-                    <ChevronUp className="w-4 h-4 text-slate-400" />
-                ) : (
-                    <ChevronDown className="w-4 h-4 text-slate-400" />
-                )}
-            </div>
-        </div>
+export const TransactionItem = ({ transaction, onToggle }: Omit<TransactionItemProps, 'isExpanded'>) => {
+    const [isExpanded, setIsExpanded] = useState(false);
 
-        {isExpanded && (
-            <div className="mt-2 pt-2 border-t border-slate-800 text-sm">
-                <TransactionDetails
-                    category={transaction.category}
-                    merchant={transaction.merchant}
-                    reference={transaction.reference}
-                />
+    const handleToggle = () => {
+        setIsExpanded(!isExpanded);
+        onToggle?.(transaction.id);
+    };
+
+    return (
+        <div
+            className="border border-slate-800 rounded p-3 cursor-pointer hover:bg-slate-800 transition-colors"
+            onClick={handleToggle}
+        >
+            <div className="flex justify-between items-center">
+                <div>
+                    <div className="font-medium text-slate-100">{transaction.description}</div>
+                    <div className="text-sm text-slate-400">{transaction.date}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className={`font-medium ${transaction.amount < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                        {Money.format(transaction.amount)}
+                    </span>
+                    {isExpanded ? (
+                        <ChevronUp className="w-4 h-4 text-slate-400" />
+                    ) : (
+                        <ChevronDown className="w-4 h-4 text-slate-400" />
+                    )}
+                </div>
             </div>
-        )}
-    </div>
-);
+
+            {isExpanded && (
+                <div className="mt-2 pt-2 border-t border-slate-800 text-sm">
+                    <TransactionDetails
+                        category={transaction.category}
+                        merchant={transaction.merchant}
+                        reference={transaction.reference}
+                    />
+                </div>
+            )}
+        </div>
+    );
+};
 
 interface TransactionDetailsProps {
     category: string;

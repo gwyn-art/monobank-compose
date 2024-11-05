@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UITransaction } from "./types";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Money } from "../utils/money";
+import React from "react";
 
 interface TransactionGraphProps {
     transactions: UITransaction[];
@@ -14,7 +15,7 @@ interface DailyTotal {
     balance: number;
 }
 
-export const TransactionGraph = ({ transactions: _transactions }: TransactionGraphProps) => {
+export const TransactionGraph = React.memo(({ transactions: _transactions }: TransactionGraphProps) => {
     const transactions = _transactions.reverse();
     // Find first transaction for each account
     const firstTransactions = transactions.reduce((acc: { [key: string]: UITransaction }, curr) => {
@@ -136,4 +137,4 @@ export const TransactionGraph = ({ transactions: _transactions }: TransactionGra
             </CardContent>
         </Card>
     );
-};
+});
