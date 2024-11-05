@@ -47,9 +47,6 @@ export default async function Home({
     return <main>Can&apos;t fetch bank history.</main>;
   }
 
-  const debit = transactions.filter((tr) => tr.amount > 0);
-  const credit = transactions.filter((tr) => tr.amount < 0);
-
   return (
     <main className="p-4 max-w-4xl mx-auto space-y-4 bg-slate-950 min-h-screen text-slate-100">
       <div className="flex justify-between items-center">

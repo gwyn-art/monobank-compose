@@ -30,7 +30,6 @@ export const TransactionGraph = React.memo(({ transactions: _transactions }: Tra
 
     // Process transactions into daily totals
     const dailyTotals = transactions.reduce((acc: { [key: string]: DailyTotal }, curr) => {
-        console.log('Processing transaction for date:', curr.date);
         const date = curr.date;
         if (!acc[date]) {
             acc[date] = {
