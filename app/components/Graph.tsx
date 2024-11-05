@@ -15,7 +15,7 @@ interface DailyTotal {
     balance: number;
 }
 
-export const TransactionGraph = React.memo(({ transactions: _transactions }: TransactionGraphProps) => {
+const TransactionGraph = React.memo(({ transactions: _transactions }: TransactionGraphProps) => {
     const transactions = _transactions.reverse();
     // Find first transaction for each account
     const firstTransactions = transactions.reduce((acc: { [key: string]: UITransaction }, curr) => {
@@ -137,3 +137,7 @@ export const TransactionGraph = React.memo(({ transactions: _transactions }: Tra
         </Card>
     );
 });
+
+TransactionGraph.displayName = 'TransactionGraph';
+
+export { TransactionGraph };
